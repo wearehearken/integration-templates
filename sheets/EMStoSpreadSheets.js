@@ -1,15 +1,15 @@
 function EMStoSpreadSheet() {
   Logger.clear()
-  const KEY = '' // Your Key in ''
-  const ORG_SLUG = 'wndr' // your  organization_slu
-  const LIMIT = 100 // how many questions to fetch at a time
+  const KEY ='PkEqknRRbHFIcw6nbeMbMVgGtcOd9hOwS8XNY5WmvSNgLsHMSLhlRLG77DF3X1gW'
+  const ORG_SLUG = 'cpr' // your  organization_slug
+  const LIMIT = 500 // how many questions to fetch at a time
   const MAX_LENGTH = 30 // maximum length of tab names
+  const FILTERS = ''
 
   const COLUMNS = [
     'Id',	'Question',
     'Asker Name', 'Asker Email','Anonymous?',
-    'Submitted at', 'Question Status',
-    'Reporter',	'Contacted','Notes'
+    'Submitted at'
   ]
 
   const EXEMPT_SHEETS = ['metadata']
@@ -18,8 +18,7 @@ function EMStoSpreadSheet() {
   function dataToColumns(q) {
     return [
       q.id, q.display_text, q.name,
-      q.email, q.anonymous, new Date(q.created_at),
-      q.question_status.name
+      q.email, q.anonymous, new Date(q.created_at)
     ]
   }
 
@@ -53,10 +52,10 @@ function EMStoSpreadSheet() {
   }
 
   function addToCache(sheetname, id) {
-    if(idCache[sheetName]) {
+    if(idCache[sheetname]) {
       idCache[sheetname] =  []
     }
-    idCache[sheetName].push(id)
+    idCache[sheetname].push(id)
   }
 
   function deleteRow(sheet, rowIndex) {
@@ -104,12 +103,12 @@ function EMStoSpreadSheet() {
   function getIdsInSheet(sheetname) {
     let activeSpreadsheet = getOrCreateSheet(sheetname);
 
-    let lastRow = Math.round(sheet.getLastRow())
+    let lastRow = Math.round(activeSpreadsheet.getLastRow())
     if (lastRow < 2) {
       return []
     }
 
-    let ids = readDataFromRange(sheet, 'A2:A' + lastRow)
+    let ids = readDataFromRange(activeSpreadsheet, 'A2:A' + lastRow)
     ids = ids.map(function(id) {
      return id[0]
     })
@@ -130,7 +129,7 @@ function EMStoSpreadSheet() {
   }
 
   function idExists(sheetname, id) {
-    return (getRowInSheet(sheetName, id) > -1)
+    return (getRowInSheet(sheetname, id) > -1)
   }
 
   function deleteSheets() {
@@ -155,7 +154,10 @@ function EMStoSpreadSheet() {
   }
 
   function processResponse(response) {
-    let questionCount = response.data.length
+    let questionCount = 0
+    if(response.data != null) {
+     questionCount = response.data.length
+    }
     Logger.log('Processing..' + questionCount + ' responses');
 
     // Add questions to approproate spreadsheet
@@ -200,8 +202,9 @@ function EMStoSpreadSheet() {
   buildIdCache()
   let baseUrl = 'https://api.wearehearken.com/api/v1/questions' +
     '?organization_slug=' + ORG_SLUG +
-    '&api_key=' + KEY +
+    '&api_key=' + KEY + FILTERS +
     '&_limit=' + LIMIT
+
   getAndProcess(baseUrl);
   sortDataSheets();
 
