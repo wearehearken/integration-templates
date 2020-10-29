@@ -1,5 +1,6 @@
 function EMStoSpreadSheet() {
-  Logger.clear()
+  Logger.clear() <<
+    << << < HEAD
   const KEY = '' // Your Key in ''
   const ORG_SLUG = 'kpcc' // your  organization_id
   const LIMIT = 100 // how many questions to fetch at a time.
@@ -23,10 +24,11 @@ function EMStoSpreadSheet() {
   function dataToColumns(q, county) {
     return [
       q.id, new Date(q.created_at), q.display_text,
-        q.name, q.email, getCustomField(q.custom_fields, 'Zip code'), county,
-        getCustomField(q.custom_fields, "I'd like to learn about resources available"),
-        getCustomField(q.custom_fields, "I'd like to learn about opportunities to volunteer or donate"),
-        'https://ems.wearehearken.com/kpcc/admin/questions/' + q.id
+      q.name, q.email, getCustomField(q.custom_fields, 'Zip code'), county,
+      getCustomField(q.custom_fields, "I'd like to learn about resources available"),
+      getCustomField(q.custom_fields, "I'd like to learn about opportunities to volunteer or donate"),
+      'https://ems.wearehearken.com/kpcc/admin/questions/' + q.id
+
     ]
   }
 
@@ -82,11 +84,12 @@ function EMStoSpreadSheet() {
     addToCache(sheetName, q.id)
   }
 
+
   function addToCache(sheetName, id) {
     if (!idCache[sheetName]) {
       idCache[sheetName] = []
     }
-    idCache[sheetName].push(id)
+    idCache[sheetname].push(id)
   }
 
   function deleteRow(sheet, rowIndex) {
@@ -105,7 +108,7 @@ function EMStoSpreadSheet() {
   }
 
   function getCustomField(fields, name) {
-    let val = fields.filter(function(f) {
+    let val = fields.filter(function (f) {
       return f.name === name
     })
     if (val.length > 0) {
@@ -134,14 +137,14 @@ function EMStoSpreadSheet() {
   function getIdsInSheet(sheetName) {
     let sheet = getOrCreateSheet(sheetName);
 
-    let lastRow = Math.round(sheet.getLastRow())
+    let lastRow = Math.round(activeSpreadsheet.getLastRow())
     if (lastRow < 2) {
       return []
     }
 
-    let ids = readDataFromRange(sheet, 'A2:A' + lastRow)
-    ids = ids.map(function(id) {
-     return id[0]
+    let ids = readDataFromRange(activeSpreadsheet, 'A2:A' + lastRow)
+    ids = ids.map(function (id) {
+      return id[0]
     })
     return ids
   }
@@ -159,9 +162,11 @@ function EMStoSpreadSheet() {
     return ids.indexOf(id)
   }
 
+
   function idExists(sheetName, id) {
     return (getRowInSheet(sheetName, id) > -1)
   }
+
 
   function deleteSheets() {
     let spreadsheet = SpreadsheetApp.getActive();
@@ -185,7 +190,10 @@ function EMStoSpreadSheet() {
   }
 
   function processResponse(response) {
-    let questionCount = response.data.length
+    let questionCount = 0
+    if (response.data != null) {
+      questionCount = response.data.length
+    }
     Logger.log('Processing..' + questionCount + ' responses');
 
     // Add questions to approproate spreadsheet
@@ -216,7 +224,7 @@ function EMStoSpreadSheet() {
     let sheets = spreadsheet.getSheets();
     for (let sheet of sheets) {
       let sheetName = sheet.getName()
-      if ( !EXEMPT_SHEETS.includes(sheetName)) {
+      if (!EXEMPT_SHEETS.includes(sheetName)) {
         idCache[sheetName] = getIdsInSheet(sheetName)
         Logger.log('caching ' + sheetName);
       }
@@ -254,10 +262,11 @@ function EMStoSpreadSheet() {
   buildIdCache()
   let baseUrl = 'https://api.wearehearken.com/api/v1/questions' +
     '?organization_slug=' + ORG_SLUG +
+
     '&api_key=' + KEY +
     '&_limit=' + LIMIT +
-      '&created_at_gte=' + lastTimeStamp +
-      '&source=' + EMBED_ID
+    '&created_at_gte=' + lastTimeStamp +
+    '&source=' + EMBED_ID
 
   getAndProcess(baseUrl);
   sortDataSheets();
