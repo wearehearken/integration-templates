@@ -1,25 +1,32 @@
 function EMStoSpreadSheet() {
   Logger.clear()
   const KEY = '' // Your Key in ''
-  const ORG_SLUG = 'wndr' // your  organization_slu
-  const LIMIT = 100 // how many questions to fetch at a time
-  const MAX_LENGTH = 30 // maximum length of tab names
+  const ORG_SLUG = 'kpcc' // your  organization_id
+  const LIMIT = 100 // how many questions to fetch at a time.
+  const GEOCODING_API_KEY = 'AIzaSyBwLLUy0uvf6sCtVJqf4pmVlnhRjNLi0eY'
+  const EMBED_ID = 'prompt_embed:4823'
 
   const COLUMNS = [
-    'Id',	'Question',
-    'Asker Name', 'Asker Email','Anonymous?',
-    'Submitted at', 'Question Status',
-    'Reporter',	'Contacted','Notes'
+    'Id', 'Date received', 'Question/Concern', 'Name',
+    'Contact Info', 'Zip Code', 'County', 'Send help info',
+    'Send volunteer donate info', 'EMS link', 'Show assigned',
+    'Show producer assigned', 'Engagement team assigned',
+    'OUR OUTREACH', 'Date answered', 'Follow up?', 'Follow up date',
+    'HOW DID THEY REACH US (what platform? Facebook, HVG text, etc)',
+    'REPORTER WHO WANTS SOURCE'
   ]
 
-  const EXEMPT_SHEETS = ['metadata']
+  const EXEMPT_SHEETS = ['metadata', 'ANSWER CHEAT SHEET', 'QUESTIONS', 'OUT-OF-STATE QUESTIONS']
+
   const idCache = {}
 
-  function dataToColumns(q) {
+  function dataToColumns(q, county) {
     return [
-      q.id, q.display_text, q.name,
-      q.email, q.anonymous, new Date(q.created_at),
-      q.question_status.name
+      q.id, new Date(q.created_at), q.display_text,
+        q.name, q.email, getCustomField(q.custom_fields, 'Zip code'), county,
+        getCustomField(q.custom_fields, "I'd like to learn about resources available"),
+        getCustomField(q.custom_fields, "I'd like to learn about opportunities to volunteer or donate"),
+        'https://ems.wearehearken.com/kpcc/admin/questions/' + q.id
     ]
   }
 
@@ -38,23 +45,46 @@ function EMStoSpreadSheet() {
       .setValue(timestamp);
   }
 
-  function getSheetNameForQ(q) {
-    return q.embed_name.substr(0, MAX_LENGTH)
+  const listIdToName = {
+    '7944': 'Symptoms',
+    '7945': 'Safe Activities',
+    '7946': 'Sanitizing',
+    '7947': 'Closure',
+    '7948': 'Stimulus',
+    '7949': 'Testing/travel',
+    '7950': 'Evictions',
+    '7951': 'Small business',
+    '7952': 'Food/Shopping',
+    '7953': 'General',
+    '7954': 'Senior'
+  }
+
+  function getSheetNameForQ(q, geocodeVal) {
+    let inState = geocodeVal && geocodeVal['administrative_area_level_1'] == 'CA'
+    let list_ids = q.lists.data.map((l) => l.id).filter((i) => i >= 7944 && i <= 7954)
+    let lists = list_ids.map((i) => listIdToName[i.toString()])
+    if (!lists || lists.length === 0) {
+      lists = ['Unclassified']
+    }
+    return lists[0] + (inState ? '' : '| OUT-OF-STATE')
   }
 
   function appendRow(q) {
-    let sheetName = getSheetNameForQ(q)
+    let zipCode = getCustomField(q.custom_fields, 'Zip code')
+    let geocodeVal = geocode(zipCode)
+
+    let sheetName = getSheetNameForQ(q, geocodeVal)
     let sheet = getOrCreateSheet(sheetName)
     if (idExists(sheetName, q.id)) {
       return
     }
-    sheet.appendRow(dataToColumns(q));
+    sheet.appendRow(dataToColumns(q, geocodeVal && geocodeVal['administrative_area_level_2']));
     addToCache(sheetName, q.id)
   }
 
-  function addToCache(sheetname, id) {
-    if(idCache[sheetName]) {
-      idCache[sheetname] =  []
+  function addToCache(sheetName, id) {
+    if (!idCache[sheetName]) {
+      idCache[sheetName] = []
     }
     idCache[sheetName].push(id)
   }
@@ -69,7 +99,7 @@ function EMStoSpreadSheet() {
 
     if (sheet === null) {
       sheet = activeSpreadsheet.insertSheet(name);
-      sheet.appendRow()
+      sheet.appendRow(COLUMNS)
     }
     return sheet;
   }
@@ -101,8 +131,8 @@ function EMStoSpreadSheet() {
     }
   }
 
-  function getIdsInSheet(sheetname) {
-    let activeSpreadsheet = getOrCreateSheet(sheetname);
+  function getIdsInSheet(sheetName) {
+    let sheet = getOrCreateSheet(sheetName);
 
     let lastRow = Math.round(sheet.getLastRow())
     if (lastRow < 2) {
@@ -129,7 +159,7 @@ function EMStoSpreadSheet() {
     return ids.indexOf(id)
   }
 
-  function idExists(sheetname, id) {
+  function idExists(sheetName, id) {
     return (getRowInSheet(sheetName, id) > -1)
   }
 
@@ -177,7 +207,7 @@ function EMStoSpreadSheet() {
   }
 
   function getAndProcess(url) {
-    let response = fetchResponse(url)
+    let response = fetchResponse(url + '&api_key=' + KEY)
     processResponse(response)
   }
 
@@ -193,15 +223,42 @@ function EMStoSpreadSheet() {
     }
   }
 
+  function geocode(zip) {
+    if (!zip) {
+      return
+    }
+    let geocodeUrl = 'https://maps.googleapis.com/maps/api/geocode/json?components=postal_code:' +
+      zip + '&key=' + GEOCODING_API_KEY
+    let response = UrlFetchApp.fetch(geocodeUrl, {
+      'muteHttpExceptions': true
+    })
+    let parsedResp = JSON.parse(response)
+    return geocodeToComponents(parsedResp.results[0])
+  }
 
-  // deleteSheets()
+  function geocodeToComponents(components) {
+    if (!components) {
+      return {}
+    }
+    let ret = {}
+    let comps = components['address_components']
+    comps.forEach((c) => {
+      ret[c['types'][0]] = c.short_name
+    });
+    return ret
+  }
+
+  //deleteSheets()
   let lastTimeStamp = getLastTimeStamp()
   let newTimeStamp = lastTimeStamp
   buildIdCache()
   let baseUrl = 'https://api.wearehearken.com/api/v1/questions' +
     '?organization_slug=' + ORG_SLUG +
     '&api_key=' + KEY +
-    '&_limit=' + LIMIT
+    '&_limit=' + LIMIT +
+      '&created_at_gte=' + lastTimeStamp +
+      '&source=' + EMBED_ID
+
   getAndProcess(baseUrl);
   sortDataSheets();
 

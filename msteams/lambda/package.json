@@ -1,0 +1,13 @@
+{
+  "name": "SampleLambda",
+  "version": "1.0.0",
+  "description": "Lambda for sending Microsoft Teams card from new question webhook",
+  "main": "index.js",
+  "repository": "https://github.com/wearehearken/integration-templates.git",
+  "author": "Kavya Sukumar",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "request": "^2.88.2"
+  }
+}
