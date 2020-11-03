@@ -9,33 +9,36 @@ const isValidPayload = (body) => {
   return true
 }
 
+const truncateToNWords = (str, n) => {
+  let newString = str.split(" ").splice(0, n).join(" ")
+  return (newString.length < str.length) ? newString + '...' : newString
+}
+
 const getpostalCode = (question) => {
   let postalCode = question.custom_fields.filter((f) => f.type == 'postal_code')
   return postalCode ? postalCode[0].value : null
 }
 
-const getDescription = (question) => {
-  let descr = `<p><b>Submitted by</b>: ${question.name}\<${question.email}\></p>`
+const getBody = (question) => {
+  let descr = `<p>${question.display_text}</p><hr/><p><b>Submitted by</b>: ${question.name}\<${question.email}\></p>`
   
   if (question.embed_name) {
-    descr += `<p><b>Source</b>:<a href='${question.source_url}'>${question.embed_name}</a></p>`
+    descr += `<p><b>Source</b>:<a target='_blank' href='${question.source_url}'>${question.embed_name}</a></p>`
   } else {
-    descr += `<p><b>Source</b>:<a href='${question.source_url}'>${question.source}</a></p>`
+    descr += `<p><b>Source</b>:<a target='_blank' href='${question.source_url}'>${question.source}</a></p>`
   }
 
-  let lists = question.lists.data.map((l) => l.name).join(' ')
-
-  descr += `<p><b>Lists</b>: ${lists}</p>` 
-
   let customFields = question.custom_fields.map((f) => `<li><b>${f.name}</b>: ${f.value}</li>`).join(' ')
-  descr += '<h5>Custom Fields</h5><ul>' + customFields + '</ul>'
-  
-  descr += `<p><i><a href='${getQuestionURL(question.id)}'>Open in EMS</a></i></p>`
+  descr += '<b>Custom Fields</b><ul>' + customFields + '</ul>'
+  descr += `<p><b>Lists</b>: ${getListNames(question)}</p>`
+  descr += `<p><i><a target='_blank' href='${getQuestionURL(question.id)}'>Open in EMS</a></i></p>`
   return descr
 }
 
 const getQuestionURL = (id) => `https://ems.wearehearken.com/${process.env.ORG_SLUG}/admin/questions/${id}`
 
+const getListNames = (question) =>
+  question.lists.data.map((l) => l.name).join(' ')
 
 const toDinaFormat = (question) => {
   return JSON.stringify({
@@ -47,12 +50,11 @@ const toDinaFormat = (question) => {
       "urgency": 3,
       "pubstatus": "usable",
       "ednotes": question.notes,
-      "newscodes": [1100000],
-      "headline": question.display_text,
-      "body_html": question.display_text,
-      "description_html": getDescription(question),
+      "headline": truncateToNWords(question.display_text, 10),
+      "body_html": getBody(question),
       "located": getpostalCode(question),
-      "href": getQuestionURL(question.id)
+      "href": getQuestionURL(question.id),
+      "section": getListNames(question)
     }]
   })
 }
@@ -72,6 +74,7 @@ const sendToDiNa = (question) => {
     redirect: 'follow',
     timeout: 60000
   }
+  
   return fetch(process.env.DINA_URL, requestOptions)
 }
 
