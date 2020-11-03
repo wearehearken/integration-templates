@@ -4,7 +4,7 @@ function EMStoSpreadSheet() {
   const KEY = '' // Your Key in ''
   const ORG_SLUG = 'kpcc' // your  organization_id
   const LIMIT = 100 // how many questions to fetch at a time.
-  const GEOCODING_API_KEY = 'AIzaSyBwLLUy0uvf6sCtVJqf4pmVlnhRjNLi0eY'
+  const GEOCODING_API_KEY = '' //Your key in ''
   const EMBED_ID = 'prompt_embed:4823'
 
   const COLUMNS = [
