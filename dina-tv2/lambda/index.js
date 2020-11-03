@@ -22,10 +22,19 @@ const getDescription = (question) => {
   } else {
     descr += `<p><b>Source</b>:<a href='${question.source_url}'>${question.source}</a></p>`
   }
+
+  let lists = question.lists.data.map((l) => l.name).join(' ')
+
+  descr += `<p><b>Lists</b>: ${lists}</p>` 
+
+  let customFields = question.custom_fields.map((f) => `<li><b>${f.name}</b>: ${f.value}</li>`).join(' ')
+  descr += '<h5>Custom Fields</h5><ul>' + customFields + '</ul>'
   
-  descr += `<p><i><a  href='https://ems.wearehearken.com/${process.env.ORG_SLUG}/admin/questions/${question.id}'>Open question in the EMS</a></i></p>`
+  descr += `<p><i><a href='${getQuestionURL(question.id)}'>Open in EMS</a></i></p>`
   return descr
 }
+
+const getQuestionURL = (id) => `https://ems.wearehearken.com/${process.env.ORG_SLUG}/admin/questions/${id}`
 
 
 const toDinaFormat = (question) => {
@@ -40,11 +49,10 @@ const toDinaFormat = (question) => {
       "ednotes": question.notes,
       "newscodes": [1100000],
       "headline": question.display_text,
-      "body_text": question.original_text,
-      "body_html": question.original_text,
-      "description_text": null,
+      "body_html": question.display_text,
       "description_html": getDescription(question),
-      "located": getpostalCode(question)
+      "located": getpostalCode(question),
+      "href": getQuestionURL(question.id)
     }]
   })
 }
@@ -64,7 +72,6 @@ const sendToDiNa = (question) => {
     redirect: 'follow',
     timeout: 60000
   }
-  console.log(toDinaFormat(question))
   return fetch(process.env.DINA_URL, requestOptions)
 }
 
@@ -86,7 +93,7 @@ const refetchQuestion = (body) => {
 }
 
 const respondWithError = (error) => {
-  console.error(error)
+  console.error('responding  with error',  error)
   return {
     statusCode: 400,
     message: 'Error' + JSON.stringify(error)
@@ -106,7 +113,6 @@ const validateResponse = (resp, stage) => {
 }
 
 exports.handler = async (event) => {
-  console.log(event)
   let body = JSON.parse(event.body)
 
   if (!isValidPayload(body)) {
@@ -123,20 +129,19 @@ exports.handler = async (event) => {
         validateResponse(response, 'refetch Question')
 
         if (response.total_objects <= 0) {
-          console.log('Could not find question')
+          console.error('Could not find question')
           reject(respondWithError('Could not find question'))
         } else {
           let question = response.data.filter((q) => q.id === body.payload.id)
           if (question.length === 0) {
-            console.log('Could not find question')
+            console.error('Could not find question')
             reject(respondWithError('Could not find question'))
           }
           sendToDiNa(question[0])
            .then(parseResponse)
            .then((resp) => {
-               console.log("response from DiNa",resp)
+               console.log("Response from DiNa",resp)
                if (resp === null) {
-                 console.log("test",resp)
                  resolve({
                   statusCode: 200,
                   body: JSON.stringify('Success')
