@@ -67,3 +67,11 @@ Open Lambda on AWS admin web page and add the following
 Configure a API gateway with REST API
 Configure SNS to integration-alerts on failure
 Add the required ENV vars
+
+
+# Development
+Once the changes are saved, run
+```sh
+./deploy.sh
+```
+
